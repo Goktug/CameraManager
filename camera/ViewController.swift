@@ -40,7 +40,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
 //      cameraManager.shouldRespondToOrientationChanges = false
         cameraManager.shouldEnableExposure = true
-        
+        cameraManager.cameraOutputQuality = .iFrame960x540
         cameraManager.shouldFlipFrontCameraImage = false
         cameraManager.showAccessPermissionPopupAutomatically = false
         navigationController?.navigationBar.isHidden = true
@@ -214,14 +214,6 @@ class ViewController: UIViewController {
     
     @IBAction func changeCameraQuality() {
         
-        switch cameraManager.changeQualityMode() {
-        case .high:
-            qualityLabel.text = "High"
-        case .low:
-            qualityLabel.text = "Low"
-        case .medium:
-            qualityLabel.text = "Medium"
-        }
     }
 }
 
