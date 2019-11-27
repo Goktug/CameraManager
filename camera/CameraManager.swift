@@ -848,22 +848,18 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
     }
     
     open func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if let error = error {
-            _show(NSLocalizedString("Unable to save video to the device", comment:""), message: error.localizedDescription)
-        } else {
-            if writeFilesToPhoneLibrary {
-                if PHPhotoLibrary.authorizationStatus() == .authorized {
-                    _saveVideoToLibrary(outputFileURL)
-                } else {
-                    PHPhotoLibrary.requestAuthorization({ (autorizationStatus) in
-                        if autorizationStatus == .authorized {
-                            self._saveVideoToLibrary(outputFileURL)
-                        }
-                    })
-                }
+        if writeFilesToPhoneLibrary {
+            if PHPhotoLibrary.authorizationStatus() == .authorized {
+                _saveVideoToLibrary(outputFileURL)
             } else {
-                _executeVideoCompletionWithURL(outputFileURL, error: error as NSError?)
+                PHPhotoLibrary.requestAuthorization({ (autorizationStatus) in
+                    if autorizationStatus == .authorized {
+                        self._saveVideoToLibrary(outputFileURL)
+                    }
+                })
             }
+        } else {
+            _executeVideoCompletionWithURL(outputFileURL, error: error as NSError?)
         }
     }
     
