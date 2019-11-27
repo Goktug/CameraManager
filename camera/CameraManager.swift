@@ -148,6 +148,9 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
         }
     }
     
+    /// When error occured while recording, this block will call
+    open var recordingErrorBlock: ((_ outputVideoUrl: URL, _ error: Error?) -> Void)?
+    
     /**
      Property to determine if manager should write the resources to the phone library.
      - note: Default value is **true**
@@ -315,6 +318,9 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
     /// Property to set video stabilisation mode during a video record session
     open var videoStabilisationMode : AVCaptureVideoStabilizationMode = .auto
     
+    /// The output directory of the file which will be saved
+    open var outputDirectory: String = NSTemporaryDirectory()
+    
     
     // MARK: - Private properties
     
@@ -350,7 +356,7 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
     fileprivate var maxZoomScale    = CGFloat(1.0)
     
     fileprivate func _tempFilePath() -> URL {
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("tempMovie\(Date().timeIntervalSince1970)").appendingPathExtension("mp4")
+        let tempURL = URL(fileURLWithPath: outputDirectory).appendingPathComponent("tempMovie\(Date().timeIntervalSince1970)").appendingPathExtension("mp4")
         return tempURL
     }
     
@@ -788,10 +794,11 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
      Stop recording a video. Save it to the cameraRoll and give back the url.
      */
     open func stopVideoRecording(_ completion:((_ videoURL: URL?, _ error: NSError?) -> Void)?) {
-        if let runningMovieOutput = movieOutput,
-            runningMovieOutput.isRecording {
+        if let runningMovieOutput = movieOutput {
+            if runningMovieOutput.isRecording {
                 videoCompletion = completion
                 runningMovieOutput.stopRecording()
+            }
         }
     }
     
@@ -848,18 +855,22 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
     }
     
     open func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if writeFilesToPhoneLibrary {
-            if PHPhotoLibrary.authorizationStatus() == .authorized {
-                _saveVideoToLibrary(outputFileURL)
-            } else {
-                PHPhotoLibrary.requestAuthorization({ (autorizationStatus) in
-                    if autorizationStatus == .authorized {
-                        self._saveVideoToLibrary(outputFileURL)
-                    }
-                })
-            }
+        if let error = error {
+            recordingErrorBlock?(outputFileURL, error)
         } else {
-            _executeVideoCompletionWithURL(outputFileURL, error: error as NSError?)
+            if writeFilesToPhoneLibrary {
+                if PHPhotoLibrary.authorizationStatus() == .authorized {
+                    _saveVideoToLibrary(outputFileURL)
+                } else {
+                    PHPhotoLibrary.requestAuthorization({ (autorizationStatus) in
+                        if autorizationStatus == .authorized {
+                            self._saveVideoToLibrary(outputFileURL)
+                        }
+                    })
+                }
+            } else {
+                _executeVideoCompletionWithURL(outputFileURL, error: error as NSError?)
+            }
         }
     }
     
@@ -1398,7 +1409,7 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
         sessionQueue.async(execute: {
             if let validCaptureSession = self.captureSession {
                 validCaptureSession.beginConfiguration()
-                validCaptureSession.sessionPreset = AVCaptureSession.Preset.high
+                validCaptureSession.sessionPreset = self.cameraOutputQuality
                 self._updateCameraDevice(self.cameraDevice)
                 self._setupOutputs()
                 self._setupOutputMode(self.cameraOutputMode, oldCameraOutputMode: nil)
